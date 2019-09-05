@@ -323,6 +323,13 @@ class mod_attendance_renderer extends plugin_renderer_base {
 
         $date = userdate($sess->sessdate, get_string('strftimedmyw', 'attendance'));
         $time = $this->construct_time($sess->sessdate, $sess->duration);
+
+        // Support session with no date
+        if (empty($sess->sessdate)) {
+            $date = 'TBD';
+            $time = self::get_duration_text($sess->duration);
+        }
+
         if ($sess->lasttaken > 0) {
             if (has_capability('mod/attendance:changeattendances', $sessdata->att->context)) {
                 $url = $sessdata->url_take($sess->id, $sess->groupid);
@@ -356,6 +363,63 @@ class mod_attendance_renderer extends plugin_renderer_base {
 
         return array('date' => $date, 'time' => $time, 'actions' => $actions);
     }
+
+    /**
+     * Returns selectable units.
+     * @static
+     * @return array
+     */
+    protected static function get_units() {
+        return array(
+            604800 => get_string('weeks'),
+            86400 => get_string('days'),
+            3600 => get_string('hours'),
+            60 => get_string('minutes'),
+            1 => get_string('seconds'),
+        );
+    }
+
+    /**
+     * Converts seconds to some more user friendly string.
+     * @static
+     * @param int $seconds
+     * @return string
+     */
+    protected static function get_duration_text($seconds) {
+        if (empty($seconds)) {
+            return get_string('none');
+        }
+        $data = self::parse_seconds($seconds);
+        switch ($data['u']) {
+            case (60*60*24*7):
+                return get_string('numweeks', '', $data['v']);
+            case (60*60*24):
+                return get_string('numdays', '', $data['v']);
+            case (60*60):
+                return get_string('numhours', '', $data['v']);
+            case (60):
+                return get_string('numminutes', '', $data['v']);
+            default:
+                return get_string('numseconds', '', $data['v']*$data['u']);
+        }
+    }
+
+    /**
+     * Finds suitable units for given duration.
+     * @static
+     * @param int $seconds
+     * @return array
+     */
+    protected static function parse_seconds($seconds) {
+        foreach (self::get_units() as $unit => $unused) {
+            if ($seconds % $unit === 0) {
+                return array('v'=>(int)($seconds/$unit), 'u'=>$unit);
+            }
+        }
+        return array('v'=>(int)$seconds, 'u'=>1);
+    }
+
+
 
     /**
      * Render session manage control.
@@ -471,10 +535,17 @@ class mod_attendance_renderer extends plugin_renderer_base {
      */
     private function construct_take_session_info(attendance_take_data $takedata) {
         $sess = $takedata->sessioninfo;
-        $date = userdate($sess->sessdate, get_string('strftimedate'));
-        $starttime = attendance_strftimehm($sess->sessdate);
-        $endtime = attendance_strftimehm($sess->sessdate + $sess->duration);
-        $time = html_writer::tag('nobr', $starttime . ($sess->duration > 0 ? ' - ' . $endtime : ''));
+
+        if (empty($sess->sessdate)) {
+            $date = 'TDB,';
+            $time = self::get_duration_text($sess->duration);
+        } else {
+            $date = userdate($sess->sessdate, get_string('strftimedate'));
+            $starttime = attendance_strftimehm($sess->sessdate);
+            $endtime = attendance_strftimehm($sess->sessdate + $sess->duration);
+            $time = html_writer::tag('nobr', $starttime . ($sess->duration > 0 ? ' - ' . $endtime : ''));
+        }
+
         $sessinfo = $date.' '.$time;
         $sessinfo .= html_writer::empty_tag('br');
         $sessinfo .= html_writer::empty_tag('br');

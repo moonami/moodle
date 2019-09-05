@@ -169,7 +169,7 @@ class mod_attendance_structure {
 
         $sql = "SELECT *
                   FROM {attendance_sessions}
-                 WHERE :time BETWEEN sessdate AND (sessdate + duration)
+                 WHERE ((:time BETWEEN sessdate AND (sessdate + duration)) OR sessdate = 0)
                    AND attendanceid = :aid";
         $params = array(
             'time'  => $today,
@@ -193,7 +193,7 @@ class mod_attendance_structure {
 
         $sql = "SELECT *
                   FROM {attendance_sessions}
-                 WHERE sessdate >= :start AND sessdate < :end
+                 WHERE ((sessdate >= :start AND sessdate < :end) OR sessdate = 0)
                    AND attendanceid = :aid";
         $params = array(
             'start' => $start,
@@ -274,11 +274,11 @@ class mod_attendance_structure {
         global $DB;
 
         if ($this->pageparams->startdate && $this->pageparams->enddate) {
-            $where = "attendanceid = :aid AND sessdate >= :csdate AND sessdate >= :sdate AND sessdate < :edate";
+            $where = "attendanceid = :aid AND ((sessdate >= :csdate AND sessdate >= :sdate AND sessdate < :edate) OR sessdate = 0)";
         } else if ($this->pageparams->enddate) {
-            $where = "attendanceid = :aid AND sessdate >= :csdate AND sessdate < :edate";
+            $where = "attendanceid = :aid AND ((sessdate >= :csdate AND sessdate < :edate) OR sessdate = 0)";
         } else {
-            $where = "attendanceid = :aid AND sessdate >= :csdate";
+            $where = "attendanceid = :aid AND (sessdate >= :csdate OR sessdate = 0)";
         }
 
         if ($this->pageparams->get_current_sesstype() > mod_attendance_page_with_filter_controls::SESSTYPE_ALL) {
@@ -396,6 +396,16 @@ class mod_attendance_structure {
     public function url_export() {
         $params = array('id' => $this->cm->id);
         return new moodle_url('/mod/attendance/export.php', $params);
+    }
+
+    /**
+     * Get url for import.
+     *
+     * @return moodle_url of import.php for attendance instance
+     */
+    public function url_import() {
+        $params = array('id' => $this->cm->id);
+        return new moodle_url('/mod/attendance/import.php', $params);
     }
 
     /**
